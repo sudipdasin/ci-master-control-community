@@ -7,6 +7,7 @@ on:
       - .github/workflows/package-alpha.yml
       - VERSION
       - scripts/**
+      - tests/**
       - install.sh
       - uninstall.sh
   workflow_dispatch:
@@ -33,42 +34,40 @@ jobs:
         run: |
           python3 -m compileall -q scripts tests
           python3 -m unittest discover -s tests -q
-      - name: Build self-contained source install ZIP
-        run: |
-          python3 - <<'PY'
-          import pathlib, zipfile
-          version = pathlib.Path("VERSION").read_text().strip()
-          assert version == "0.1.0-alpha.1", "Update release packaging when version changes"
-          name = f"ci-master-control-community-v{version}"
-          files = [
-              "VERSION", "LICENSE", "README.md", "CHANGELOG.md",
-              "install.sh", "uninstall.sh", "config/projects.example.json",
-              "scripts/demo_server.py", "scripts/readonly_circleci.py",
-              "scripts/inspect_circleci.py", "docs/ALPHA_RELEASE.md",
-              "docs/CIRCLECI_READONLY.md", "SECURITY.md"
-          ]
-          pathlib.Path("dist").mkdir(exist_ok=True)
-          with zipfile.ZipFile(f"dist/{name}-linux-source.zip", "w", zipfile.ZIP_DEFLATED) as archive:
-              for filename in files:
-                  assert pathlib.Path(filename).is_file(), filename
-                  archive.write(filename, f"{name}/{filename}")
-          print("Created source installer ZIP")
-          PY
-      - name: Smoke test packaged installer
-        run: |
-          set -eu
-          tmp="$(mktemp -d)"
-          trap 'rm -rf "$tmp"' EXIT
-          python3 -m zipfile -e dist/*.zip "$tmp"
-          cd "$tmp/ci-master-control-community-v0.1.0-alpha.1"
-          sh install.sh "$tmp/installed"
-          test -f "$tmp/installed/scripts/demo_server.py"
-          sh uninstall.sh "$tmp/installed"
-      - name: Attach ZIP to existing public pre-release
+      - name: Check tag matches source commit
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           tag="v$(cat VERSION)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null
-          gh release upload "$tag" dist/*.zip --repo "$GITHUB_REPOSITORY" --clobber
+          remote_sha="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$tag" | cut -f1)"
+          if [ "$remote_sha" != "$GITHUB_SHA" ]; then
+            echo "Tag $tag points to $remote_sha, not $GITHUB_SHA. Refusing to modify an immutable earlier release."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build reproducible source ZIP
+        if: steps.release.outputs.publish == 'true'
+        run: python3 scripts/package_release.py --output dist
+      - name: Smoke test packaged installer
+        if: steps.release.outputs.publish == 'true'
+        run: |
+          set -eu
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          python3 -m zipfile -e dist/*.zip "$tmp"
+          folder="$tmp/ci-master-control-community-$(printf v)$(cat VERSION)"
+          cd "$folder"
+          sh install.sh "$tmp/installed"
+          test -f "$tmp/installed/scripts/demo_server.py"
+          sh uninstall.sh "$tmp/installed"
+      - name: Attach ZIP to matching public pre-release
+        if: steps.release.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: gh release upload "$TAG" dist/*.zip --repo "$GITHUB_REPOSITORY" --clobber
