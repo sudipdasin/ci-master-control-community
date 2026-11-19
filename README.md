@@ -1,6 +1,6 @@
 # CI Master Control — Community
 
-[![Latest Community alpha](https://img.shields.io/badge/Download-v0.1.0--alpha.2-orange)](https://github.com/sudipdasin/ci-master-control-community/releases/tag/v0.1.0-alpha.2)
+[![Latest release](https://img.shields.io/badge/Download-Latest%20Release-orange)](https://github.com/sudipdasin/ci-master-control-community/releases)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 > **Public alpha v0.1.0-alpha.2 is available.** Experimental local-first CI monitoring preview; not production-ready.
