@@ -1,0 +1,73 @@
+name: Build and attach Community alpha ZIP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/package-alpha.yml
+      - VERSION
+      - scripts/**
+      - tests/**
+      - install.sh
+      - uninstall.sh
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: community-alpha-asset
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate source and unit tests
+        run: |
+          python3 -m compileall -q scripts tests
+          python3 -m unittest discover -s tests -q
+      - name: Check tag matches source commit
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          tag="v$(cat VERSION)"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null
+          remote_sha="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$tag" | cut -f1)"
+          if [ "$remote_sha" != "$GITHUB_SHA" ]; then
+            echo "Tag $tag points to $remote_sha, not $GITHUB_SHA. Refusing to modify an immutable earlier release."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build reproducible source ZIP
+        if: steps.release.outputs.publish == 'true'
+        run: python3 scripts/package_release.py --output dist
+      - name: Smoke test packaged installer
+        if: steps.release.outputs.publish == 'true'
+        run: |
+          set -eu
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          python3 -m zipfile -e dist/*.zip "$tmp"
+          folder="$tmp/ci-master-control-community-$(printf v)$(cat VERSION)"
+          cd "$folder"
+          sh install.sh "$tmp/installed"
+          test -f "$tmp/installed/scripts/demo_server.py"
+          sh uninstall.sh "$tmp/installed"
+      - name: Attach ZIP to matching public pre-release
+        if: steps.release.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        run: gh release upload "$TAG" dist/*.zip --repo "$GITHUB_REPOSITORY" --clobber
