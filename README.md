@@ -1,28 +1,40 @@
 # CI Master Control — Community
 
-[![Alpha release](https://img.shields.io/badge/Download-v0.1.0--alpha.1-orange)](https://github.com/sudipdasin/ci-master-control-community/releases/tag/v0.1.0-alpha.1)
+[![Latest Community alpha](https://img.shields.io/badge/Download-v0.1.0--alpha.2-orange)](https://github.com/sudipdasin/ci-master-control-community/releases/tag/v0.1.0-alpha.2)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-> **Public alpha v0.1.0-alpha.1 is available.** Experimental local-first CI monitoring preview; not production-ready.
+> **Public alpha v0.1.0-alpha.2 is available.** Experimental local-first CI monitoring preview; not production-ready.
 
-## Download the Community alpha
+## Download Community Alpha 2
 
-**[⬇ Download v0.1.0-alpha.1 (ZIP)](https://github.com/sudipdasin/ci-master-control-community/archive/refs/tags/v0.1.0-alpha.1.zip)** · **[TAR.GZ](https://github.com/sudipdasin/ci-master-control-community/archive/refs/tags/v0.1.0-alpha.1.tar.gz)** · **[Release page and notes](https://github.com/sudipdasin/ci-master-control-community/releases/tag/v0.1.0-alpha.1)**
+| Package | Direct download | Intended use |
+| --- | --- | --- |
+| Debian / Ubuntu installer | **[Download .deb](https://github.com/sudipdasin/ci-master-control-community/releases/download/v0.1.0-alpha.2/ci-master-control-community_0.1.0-alpha.2_all.deb)** | Install with APT on compatible Debian/Ubuntu systems |
+| Linux source ZIP | **[Download .zip](https://github.com/sudipdasin/ci-master-control-community/releases/download/v0.1.0-alpha.2/ci-master-control-community-v0.1.0-alpha.2-linux-source.zip)** | Extract and use the user-space installer |
 
-These are downloadable **source distributions** for Linux testers, not standalone executable binaries. Python 3.10+ is required. The release includes a local user-space installer and uninstall helper.
+**[Release notes and all assets](https://github.com/sudipdasin/ci-master-control-community/releases/tag/v0.1.0-alpha.2)** · **[Installation guide](docs/DEBIAN_INSTALL.md)** · **[Report a bug](https://github.com/sudipdasin/ci-master-control-community/issues/new)**
 
-### Install and run
+Python 3.10+ is required. The application is an experimental localhost-only preview, not a standalone native binary. Do not expose port 8787 publicly.
 
-Download and extract the ZIP/TAR.GZ, open a terminal in the extracted directory, then:
+### Install the Debian package
+
+```sh
+sudo apt install ./ci-master-control-community_0.1.0-alpha.2_all.deb
+ci-master-control-community
+```
+
+### Install from the source ZIP
+
+Extract the ZIP, enter its top-level directory, then run:
 
 ```sh
 sh install.sh
 python3 "$HOME/.local/share/ci-master-control-community/scripts/demo_server.py"
 ```
 
-Open **http://127.0.0.1:8787/** locally. The preview is bound to localhost and starts with synthetic sample data.
+Open **http://127.0.0.1:8787/** on the same machine. Synthetic sample data is displayed by default.
 
-[Read the alpha release guide](docs/ALPHA_RELEASE.md) · [Report bugs](https://github.com/sudipdasin/ci-master-control-community/issues/new)
+[Read the alpha release guide](docs/ALPHA_RELEASE.md).
 
 ## What works in the alpha
 
@@ -32,7 +44,7 @@ Open **http://127.0.0.1:8787/** locally. The preview is bound to localhost and s
 - Read-only CLI inspector; no automatic repairs, CI reruns, merges, or deployments.
 - Local installation and non-destructive uninstall helper.
 
-**Verification:** 33 Python tests passed in GitHub Codespaces on the release branch, along with compilation and isolated installation checks. Real CircleCI integration and multi-distribution VM compatibility are not yet verified.
+**Verification:** Alpha 2 passed 37 Python tests in Codespaces and its packaged dashboard returned HTTP 200 from the localhost health endpoint. GitHub Actions published the ZIP and DEB successfully. Full system-wide installation and multi-distribution VM compatibility remain unverified.
 
 ### Optional live monitoring (experimental)
 
