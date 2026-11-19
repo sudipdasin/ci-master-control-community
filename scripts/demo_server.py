@@ -12,6 +12,8 @@ from readonly_circleci import Reader, ProviderError, SLUG_RE
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "config" / "projects.example.json"
+if not DATA.is_file():
+    DATA = Path(__file__).resolve().parent / "config" / "projects.example.json"
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("CI_COMMUNITY_PREVIEW_PORT", "8787"))
 TOKEN = os.environ.get("CIRCLECI_TOKEN", "")
