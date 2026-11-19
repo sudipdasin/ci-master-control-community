@@ -23,6 +23,11 @@ class DebPackagingTests(unittest.TestCase):
             self.assertNotIn("DEBIAN/control", listing)
             control = subprocess.check_output(["dpkg-deb", "--field", str(output), "Architecture"], text=True)
             self.assertEqual(control.strip(), "all")
+            with tempfile.TemporaryDirectory() as extracted:
+                subprocess.run(["dpkg-deb", "-x", str(output), extracted], check=True)
+                launcher = pathlib.Path(extracted) / "usr/bin/ci-master-control-community"
+                self.assertTrue(launcher.is_file())
+                self.assertTrue(bool(launcher.stat().st_mode & 0o111))
 
     def test_invalid_version_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
