@@ -1,0 +1,74 @@
+name: Build and attach Community alpha ZIP
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/package-alpha.yml
+      - VERSION
+      - scripts/**
+      - install.sh
+      - uninstall.sh
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: community-alpha-asset
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate source and unit tests
+        run: |
+          python3 -m compileall -q scripts tests
+          python3 -m unittest discover -s tests -q
+      - name: Build self-contained source install ZIP
+        run: |
+          python3 - <<'PY'
+          import pathlib, zipfile
+          version = pathlib.Path("VERSION").read_text().strip()
+          assert version == "0.1.0-alpha.1", "Update release packaging when version changes"
+          name = f"ci-master-control-community-v{version}"
+          files = [
+              "VERSION", "LICENSE", "README.md", "CHANGELOG.md",
+              "install.sh", "uninstall.sh", "config/projects.example.json",
+              "scripts/demo_server.py", "scripts/readonly_circleci.py",
+              "scripts/inspect_circleci.py", "docs/ALPHA_RELEASE.md",
+              "docs/CIRCLECI_READONLY.md", "SECURITY.md"
+          ]
+          pathlib.Path("dist").mkdir(exist_ok=True)
+          with zipfile.ZipFile(f"dist/{name}-linux-source.zip", "w", zipfile.ZIP_DEFLATED) as archive:
+              for filename in files:
+                  assert pathlib.Path(filename).is_file(), filename
+                  archive.write(filename, f"{name}/{filename}")
+          print("Created source installer ZIP")
+          PY
+      - name: Smoke test packaged installer
+        run: |
+          set -eu
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          python3 -m zipfile -e dist/*.zip "$tmp"
+          cd "$tmp/ci-master-control-community-v0.1.0-alpha.1"
+          sh install.sh "$tmp/installed"
+          test -f "$tmp/installed/scripts/demo_server.py"
+          sh uninstall.sh "$tmp/installed"
+      - name: Attach ZIP to existing public pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          tag="v$(cat VERSION)"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null
+          gh release upload "$tag" dist/*.zip --repo "$GITHUB_REPOSITORY" --clobber
