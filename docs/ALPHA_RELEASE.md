@@ -1,43 +1,36 @@
-# CI Master Control Community v0.1.0-alpha.1
+# CI Master Control Community v0.1.0-alpha.2
 
-**Audience:** developers and early testers on a local Linux machine. **Status:** experimental, read-only, not production-ready.
+**Status:** experimental Linux source-installer alpha, not production-ready.
 
-## Installation
+## Download and install
 
-Download the source archive from the repository or clone it. Requires Python 3.10+ and POSIX shell.
+Download the versioned ZIP from the GitHub Releases page, extract it, open a terminal in the extracted directory, then:
 
 ```sh
 sh install.sh
 python3 "$HOME/.local/share/ci-master-control-community/scripts/demo_server.py"
 ```
 
-Open http://127.0.0.1:8787/ locally. This starts with synthetic sample data.
+Visit http://127.0.0.1:8787/ locally. Python 3.10+ is required. No third-party Python dependencies are required.
 
-## Opt-in CircleCI read-only status
+## Security boundaries
 
-Provide `CIRCLECI_TOKEN` through a local secret manager and `CI_COMMUNITY_REPOS` as a comma-separated list of `owner/repo` values, then start the server. No CI build, rerun, PR or merge is triggered.
+Synthetic project data is shown by default. Live CircleCI monitoring is opt-in, read-only, and requires `CIRCLECI_TOKEN` in the server environment and an explicit `CI_COMMUNITY_REPOS` allowlist. Never commit tokens. The server binds only to localhost and must not be exposed publicly.
 
 ## Verification
 
 ```sh
 python3 -m compileall -q scripts tests
 python3 -m unittest discover -s tests -v
+python3 scripts/package_release.py --output dist
 ```
 
-No real CircleCI integration tests or virtual-machine compatibility tests have yet been verified. This release candidate must not be described as fully validated.
+The release workflow also extracts the ZIP and smoke-tests its installation before publishing. These alpha.2 checks must be observed passing before declaring the new release validated.
 
 ## Uninstall
 
-```sh
-sh uninstall.sh
-```
+`sh uninstall.sh` prints the install path for manual review and removal; it does not automatically delete files.
 
-The uninstall helper prints the install directory for manual removal; it does not delete files automatically.
+## Limitations
 
-## Safety
-
-The HTTP server listens only on 127.0.0.1 and has no public-network authentication. Do not forward its port publicly or use a public reverse proxy. Never paste a CI token into GitHub issues or commit it to the repository. Read-only monitoring is the only live integration in this alpha.
-
-## Release gates
-
-A GitHub Release/tag has **not** been published by merely adding these files. A release should be published only after checks, security review and appropriate human release approval.
+Not a standalone executable, DEB, RPM, or AppImage. No public network authentication, automatic repairs, CI reruns, merges, or deployments. Real CircleCI integration and multi-distribution VM testing remain pending.
