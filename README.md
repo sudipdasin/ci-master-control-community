@@ -8,7 +8,7 @@ CI Master Control aims to provide multi-repository CI monitoring, historical pip
 
 ## Current capabilities
 
-This initial public repository contains a minimal, self-hosted **synthetic preview**, an example project inventory, and automated local tests. **It does not currently connect to GitHub or CircleCI**, detect real failures, generate repairs, or ship installable releases. It does not contain private repository inventory, credentials, or the existing private controller's source history.
+This public repository contains a self-hosted synthetic preview, an example project inventory, and an **experimental opt-in read-only CircleCI monitoring panel**. When configured, the backend reads recent pipeline and workflow statuses from CircleCI. It does not generate repairs, run pipelines, or ship installable releases. Real-provider integration remains unverified. It does not contain private repository inventory, credentials, or the existing private controller's source history.
 
 ### Run locally
 
@@ -19,6 +19,17 @@ python3 scripts/demo_server.py
 ```
 
 Open http://127.0.0.1:8787/ from the same machine. The preview binds to localhost. To choose a port: `CI_COMMUNITY_PREVIEW_PORT=8790 python3 scripts/demo_server.py`.
+
+### Optional live monitoring (experimental)
+
+The dashboard starts with live monitoring **disabled**. To opt in, supply a server-side CircleCI API token and an explicit comma-separated list of repositories you own or are authorized to monitor:
+
+```bash
+# Set CIRCLECI_TOKEN using your local secret manager, not a committed file.
+CI_COMMUNITY_REPOS=your-org/your-repo python3 scripts/demo_server.py
+```
+
+The server requires `CIRCLECI_TOKEN` in its environment before enabling live requests. Do not put a token in the browser, Git commits, screenshots, or shell history. The dashboard remains bound to `127.0.0.1`. It currently supports the GitHub-backed CircleCI project slug format only, and does not validate real provider behavior yet. See [read-only integration notes](docs/CIRCLECI_READONLY.md).
 
 ### Tests
 
