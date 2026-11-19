@@ -60,6 +60,40 @@ jobs:
           python3 scripts/build_deb.py --output dist
           dpkg-deb --info dist/*.deb
           dpkg-deb --contents dist/*.deb | grep -F './usr/bin/ci-master-control-community'
+      - name: Smoke-test extracted Debian dashboard and inventory
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          temp="$(mktemp -d)"
+          trap 'rm -rf "$temp"' EXIT
+          dpkg-deb -x dist/*.deb "$temp"
+          test -s "$temp/usr/share/ci-master-control-community/config/projects.example.json"
+          python3 - "$temp" <<'PY'
+          import os, pathlib, subprocess, sys, time, urllib.request
+          root = pathlib.Path(sys.argv[1])
+          app = root / "usr/share/ci-master-control-community/demo_server.py"
+          env = dict(os.environ, CI_COMMUNITY_PREVIEW_PORT="18787", CIRCLECI_TOKEN="", CI_COMMUNITY_REPOS="")
+          proc = subprocess.Popen([sys.executable, str(app)], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+          try:
+              for attempt in range(50):
+                  if proc.poll() is not None:
+                      raise RuntimeError("Packaged dashboard exited early: " + proc.stderr.read().decode())
+                  try:
+                      with urllib.request.urlopen("http://127.0.0.1:18787/health", timeout=1) as response:
+                          assert response.status == 200
+                      with urllib.request.urlopen("http://127.0.0.1:18787/api/inventory", timeout=1) as response:
+                          assert response.status == 200
+                          assert b"projects" in response.read()
+                      print("Debian extraction, health, and inventory smoke tests passed")
+                      break
+                  except (OSError, AssertionError):
+                      time.sleep(.2)
+              else:
+                  raise RuntimeError("Packaged dashboard did not pass health/inventory checks")
+          finally:
+              proc.terminate()
+              proc.wait(timeout=5)
+          PY
       - name: Smoke-test ZIP installation
         if: steps.version.outputs.publish == 'true'
         run: |
