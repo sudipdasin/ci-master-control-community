@@ -5,14 +5,15 @@
 
 > **Public alpha v0.1.0-alpha.2 is available.** Experimental local-first CI monitoring preview; not production-ready.
 
-## Download Community Alpha 2
+<!-- LATEST-RELEASE:START -->
+## Latest published release: v0.1.0-alpha.2
+**[Release notes and downloads](https://github.com/sudipdasin/ci-master-control-community/releases/tag/v0.1.0-alpha.2)** · Prerelease
 
-| Package | Direct download | Intended use |
-| --- | --- | --- |
-| Debian / Ubuntu installer | **[Download .deb](https://github.com/sudipdasin/ci-master-control-community/releases/download/v0.1.0-alpha.2/ci-master-control-community_0.1.0-alpha.2_all.deb)** | Install with APT on compatible Debian/Ubuntu systems |
-| Linux source ZIP | **[Download .zip](https://github.com/sudipdasin/ci-master-control-community/releases/download/v0.1.0-alpha.2/ci-master-control-community-v0.1.0-alpha.2-linux-source.zip)** | Extract and use the user-space installer |
-
-**[Release notes and all assets](https://github.com/sudipdasin/ci-master-control-community/releases/tag/v0.1.0-alpha.2)** · **[Installation guide](docs/DEBIAN_INSTALL.md)** · **[Report a bug](https://github.com/sudipdasin/ci-master-control-community/issues/new)**
+| Asset | Download |
+| --- | --- |
+| `ci-master-control-community-v0.1.0-alpha.2-linux-source.zip` | [Download](https://github.com/sudipdasin/ci-master-control-community/releases/download/v0.1.0-alpha.2/ci-master-control-community-v0.1.0-alpha.2-linux-source.zip) |
+| `ci-master-control-community_0.1.0-alpha.2_all.deb` | [Download](https://github.com/sudipdasin/ci-master-control-community/releases/download/v0.1.0-alpha.2/ci-master-control-community_0.1.0-alpha.2_all.deb) |
+<!-- LATEST-RELEASE:END -->
 
 Python 3.10+ is required. The application is an experimental localhost-only preview, not a standalone native binary. Do not expose port 8787 publicly.
 
