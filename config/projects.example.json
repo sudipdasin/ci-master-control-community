@@ -1,0 +1,15 @@
+{
+  "projects": [
+    {
+      "repository": "example/demo-app",
+      "provider": "demo",
+      "status": "not_checked"
+    },
+    {
+      "repository": "example/sample-library",
+      "provider": "demo",
+      "status": "success"
+    }
+  ],
+  "note": "Synthetic sample data only. No real CI statuses or credentials."
+}
