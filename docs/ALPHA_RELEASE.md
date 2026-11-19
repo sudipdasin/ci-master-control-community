@@ -1,17 +1,17 @@
-# CI Master Control Community v0.1.0-alpha.2
+# CI Master Control Community v0.1.0-alpha.3
 
 **Status:** experimental Linux Community alpha, not production-ready.
 
 ## Downloads
 
-- [Debian / Ubuntu .deb installer](https://github.com/sudipdasin/ci-master-control-community/releases/download/v0.1.0-alpha.2/ci-master-control-community_0.1.0-alpha.2_all.deb)
-- [Linux source ZIP](https://github.com/sudipdasin/ci-master-control-community/releases/download/v0.1.0-alpha.2/ci-master-control-community-v0.1.0-alpha.2-linux-source.zip)
-- [Release notes](https://github.com/sudipdasin/ci-master-control-community/releases/tag/v0.1.0-alpha.2)
+- [Debian / Ubuntu .deb installer](https://github.com/sudipdasin/ci-master-control-community/releases/download/v0.1.0-alpha.3/ci-master-control-community_0.1.0-alpha.3_all.deb)
+- [Linux source ZIP](https://github.com/sudipdasin/ci-master-control-community/releases/download/v0.1.0-alpha.3/ci-master-control-community-v0.1.0-alpha.3-linux-source.zip)
+- [Release notes](https://github.com/sudipdasin/ci-master-control-community/releases/tag/v0.1.0-alpha.3)
 
 ## Debian / Ubuntu install
 
 ```sh
-sudo apt install ./ci-master-control-community_0.1.0-alpha.2_all.deb
+sudo apt install ./ci-master-control-community_0.1.0-alpha.3_all.deb
 ci-master-control-community
 ```
 
@@ -34,7 +34,7 @@ Synthetic project data is shown by default. Live CircleCI monitoring is opt-in, 
 
 ## Verification
 
-37 Python tests passed in GitHub Codespaces. The Debian package built successfully and its extracted dashboard returned HTTP 200 at `/health`. The primary GitHub Actions publishing workflow completed successfully. Full system-wide package installation and multi-distribution VM validation are not yet verified.
+The release workflow must pass Python regression tests, source-ZIP installation smoke tests, and an extracted Debian package runtime smoke test covering `/health` and `/api/inventory` before publication. Results for Alpha 3 must be verified from its own GitHub Actions run; earlier Alpha 2 results do not count as Alpha 3 validation. Full system-wide package installation and multi-distribution VM validation remain unverified.
 
 ```sh
 python3 -m compileall -q scripts tests
@@ -42,6 +42,12 @@ python3 -m unittest discover -s tests -v
 python3 scripts/package_release.py --output dist
 python3 scripts/build_deb.py --output dist
 ```
+
+## Fixes since Alpha 2
+
+- Include the synthetic inventory in the Debian installer and resolve it from the installed layout.
+- Add regression assertions for the extracted inventory file.
+- Gate publishing on the packaged dashboard responding successfully to health and inventory endpoints.
 
 ## Limitations
 
