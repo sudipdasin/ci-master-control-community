@@ -1,15 +1,6 @@
 name: Build and attach Community alpha ZIP
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/package-alpha.yml
-      - VERSION
-      - scripts/**
-      - tests/**
-      - install.sh
-      - uninstall.sh
   workflow_dispatch:
 
 permissions:
@@ -42,7 +33,11 @@ jobs:
           set -eu
           tag="v$(cat VERSION)"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag does not exist yet; no asset upload will be attempted."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           remote_sha="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$tag" | cut -f1)"
           if [ "$remote_sha" != "$GITHUB_SHA" ]; then
             echo "Tag $tag points to $remote_sha, not $GITHUB_SHA. Refusing to modify an immutable earlier release."
@@ -70,4 +65,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}
-        run: gh release upload "$TAG" dist/*.zip --repo "$GITHUB_REPOSITORY" --clobber
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq "$(basename dist/*.zip)"; then
+            echo "ZIP asset already exists; refusing to overwrite it."
+            exit 0
+          fi
+          gh release upload "$TAG" dist/*.zip --repo "$GITHUB_REPOSITORY"
