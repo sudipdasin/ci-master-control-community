@@ -1,0 +1,128 @@
+name: Publish Community alpha from main
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - VERSION
+      - .github/workflows/publish-alpha.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: community-alpha-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact source revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate source and tests
+        run: |
+          python3 -m compileall -q scripts tests
+          python3 -m unittest discover -s tests -q
+          test -f LICENSE
+          test -f install.sh
+          test -f docs/ALPHA_RELEASE.md
+      - name: Validate version and existing release
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          version="$(cat VERSION)"
+          echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$'
+          tag="v$version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists; refusing overwrite."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build versioned ZIP
+        if: steps.version.outputs.publish == 'true'
+        run: python3 scripts/package_release.py --output dist
+      - name: Build Debian package
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          python3 scripts/build_deb.py --output dist
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb | grep -F './usr/bin/ci-master-control-community'
+      - name: Smoke-test extracted Debian dashboard and inventory
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          temp="$(mktemp -d)"
+          trap 'rm -rf "$temp"' EXIT
+          dpkg-deb -x dist/*.deb "$temp"
+          test -s "$temp/usr/share/ci-master-control-community/config/projects.example.json"
+          python3 - "$temp" <<'PY'
+          import os, pathlib, subprocess, sys, time, urllib.request
+          root = pathlib.Path(sys.argv[1])
+          app = root / "usr/share/ci-master-control-community/demo_server.py"
+          env = dict(os.environ, CI_COMMUNITY_PREVIEW_PORT="18787", CIRCLECI_TOKEN="", CI_COMMUNITY_REPOS="")
+          proc = subprocess.Popen([sys.executable, str(app)], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+          try:
+              for attempt in range(50):
+                  if proc.poll() is not None:
+                      raise RuntimeError("Packaged dashboard exited early: " + proc.stderr.read().decode())
+                  try:
+                      with urllib.request.urlopen("http://127.0.0.1:18787/health", timeout=1) as response:
+                          assert response.status == 200
+                      with urllib.request.urlopen("http://127.0.0.1:18787/api/inventory", timeout=1) as response:
+                          assert response.status == 200
+                          assert b"projects" in response.read()
+                      print("Debian extraction, health, and inventory smoke tests passed")
+                      break
+                  except (OSError, AssertionError):
+                      time.sleep(.2)
+              else:
+                  raise RuntimeError("Packaged dashboard did not pass health/inventory checks")
+          finally:
+              proc.terminate()
+              proc.wait(timeout=5)
+          PY
+      - name: Smoke-test ZIP installation
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          set -eu
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          python3 -m zipfile -e dist/*.zip "$tmp"
+          cd "$tmp/ci-master-control-community-v$(cat "$GITHUB_WORKSPACE/VERSION")"
+          sh install.sh "$tmp/installed"
+          test -f "$tmp/installed/scripts/demo_server.py"
+          sh uninstall.sh "$tmp/installed"
+      - name: Publish versioned pre-release and ZIP asset
+        if: steps.version.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -eu
+          existing_tag="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$TAG" | cut -f1)"
+          if [ -n "$existing_tag" ]; then
+            echo "Tag already exists: refusing to move it" >&2
+            exit 1
+          fi
+          git tag "$TAG" "$GITHUB_SHA"
+          git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "refs/tags/$TAG"
+          gh release create "$TAG" dist/*.zip dist/*.deb --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "CI Master Control Community $TAG" --notes-file docs/ALPHA_RELEASE.md --prerelease --latest=false
+      - name: Synchronize latest release on homepage
+        if: steps.version.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run latest-release-homepage.yml --repo "$GITHUB_REPOSITORY" --ref main
