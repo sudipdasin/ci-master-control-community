@@ -36,6 +36,9 @@ def build(root: pathlib.Path, output: pathlib.Path) -> pathlib.Path:
         app.chmod(0o755)
         for name in FILES:
             shutil.copyfile(root / "scripts" / name, app / name)
+        config = app / "config"
+        config.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(root / "config" / "projects.example.json", config / "projects.example.json")
         docs = stage / "usr/share/doc" / PACKAGE
         docs.mkdir(parents=True)
         docs.chmod(0o755)
