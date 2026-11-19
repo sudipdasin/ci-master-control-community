@@ -22,7 +22,8 @@ def build(root: pathlib.Path, output: pathlib.Path) -> pathlib.Path:
     with tempfile.TemporaryDirectory(prefix="cmc-deb-") as temp:
         stage = pathlib.Path(temp)
         control = stage / "DEBIAN"
-        control.mkdir()
+        control.mkdir(mode=0o755)
+        control.chmod(0o755)
         (control / "control").write_text(
             f"Package: {PACKAGE}\nVersion: {version}\nSection: utils\n"
             "Priority: optional\nArchitecture: all\nDepends: python3 (>= 3.10)\n"
@@ -32,19 +33,25 @@ def build(root: pathlib.Path, output: pathlib.Path) -> pathlib.Path:
         )
         app = stage / "usr/share" / PACKAGE
         app.mkdir(parents=True)
+        app.chmod(0o755)
         for name in FILES:
             shutil.copyfile(root / "scripts" / name, app / name)
         docs = stage / "usr/share/doc" / PACKAGE
         docs.mkdir(parents=True)
+        docs.chmod(0o755)
         for name in ["README.md", "LICENSE", "CHANGELOG.md"]:
             shutil.copyfile(root / name, docs / name)
         binpath = stage / "usr/bin" / PACKAGE
         binpath.parent.mkdir(parents=True)
+        binpath.parent.chmod(0o755)
         binpath.write_text(
             "#!/bin/sh\nexec /usr/bin/python3 "
             "/usr/share/ci-master-control-community/demo_server.py \"$@\"\n"
         )
         binpath.chmod(0o755)
+        (control / "control").chmod(0o644)
+        for directory in [stage, stage / "usr", stage / "usr/share", stage / "usr/share/doc"]:
+            directory.chmod(0o755)
         subprocess.run(["dpkg-deb", "--build", "--root-owner-group", str(stage), str(artifact)], check=True)
     return artifact
 
