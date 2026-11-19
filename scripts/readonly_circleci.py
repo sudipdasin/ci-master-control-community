@@ -55,7 +55,7 @@ class Reader:
     def latest(self, slug, branch="main", max_pipelines=4):
         if not SLUG_RE.fullmatch(slug):
             raise ProviderError("Invalid repository slug")
-        if not isinstance(branch, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.\\-/]{0,79}", branch) or ".." in branch:
+        if not isinstance(branch, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_./-]{0,79}", branch) or ".." in branch:
             raise ProviderError("Invalid branch")
         max_pipelines = min(4, max(1, int(max_pipelines)))
         cache_key = (slug, branch, max_pipelines)
