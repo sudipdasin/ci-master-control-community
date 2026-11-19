@@ -54,6 +54,12 @@ jobs:
       - name: Build versioned ZIP
         if: steps.version.outputs.publish == 'true'
         run: python3 scripts/package_release.py --output dist
+      - name: Build Debian package
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          python3 scripts/build_deb.py --output dist
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb | grep -F './usr/bin/ci-master-control-community'
       - name: Smoke-test ZIP installation
         if: steps.version.outputs.publish == 'true'
         run: |
@@ -79,4 +85,4 @@ jobs:
           fi
           git tag "$TAG" "$GITHUB_SHA"
           git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "refs/tags/$TAG"
-          gh release create "$TAG" dist/*.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "CI Master Control Community $TAG" --notes-file docs/ALPHA_RELEASE.md --prerelease --latest=false
+          gh release create "$TAG" dist/*.zip dist/*.deb --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "CI Master Control Community $TAG" --notes-file docs/ALPHA_RELEASE.md --prerelease --latest=false
