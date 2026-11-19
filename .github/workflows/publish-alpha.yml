@@ -1,0 +1,66 @@
+name: Publish Community alpha from main
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - VERSION
+      - .github/workflows/publish-alpha.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: community-alpha-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate source and tests
+        run: |
+          python -m compileall -q scripts tests
+          python -m unittest discover -s tests -q
+          test -f LICENSE
+          test -f install.sh
+          test -f docs/ALPHA_RELEASE.md
+      - name: Validate alpha version and publication status
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          version="$(cat VERSION)"
+          case "$version" in
+            [0-9]*.[0-9]*.[0-9]*-alpha.[0-9]*) ;;
+            *) echo "Not an alpha version" >&2; exit 1 ;;
+          esac
+          tag="v$version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists; no overwrite."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish public GitHub pre-release
+        if: steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -eu
+          git tag "$TAG" "$GITHUB_SHA"
+          git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "refs/tags/$TAG"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "CI Master Control Community $TAG" --notes-file docs/ALPHA_RELEASE.md --prerelease --latest=false
