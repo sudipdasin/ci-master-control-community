@@ -18,9 +18,9 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Checkout main
+      - name: Checkout exact source revision
         uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -30,37 +30,53 @@ jobs:
           python-version: '3.12'
       - name: Validate source and tests
         run: |
-          python -m compileall -q scripts tests
-          python -m unittest discover -s tests -q
+          python3 -m compileall -q scripts tests
+          python3 -m unittest discover -s tests -q
           test -f LICENSE
           test -f install.sh
           test -f docs/ALPHA_RELEASE.md
-      - name: Validate alpha version and publication status
+      - name: Validate version and existing release
         id: version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           version="$(cat VERSION)"
-          case "$version" in
-            [0-9]*.[0-9]*.[0-9]*-alpha.[0-9]*) ;;
-            *) echo "Not an alpha version" >&2; exit 1 ;;
-          esac
+          echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$'
           tag="v$version"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $tag already exists; no overwrite."
-            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release already exists; refusing overwrite."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Publish public GitHub pre-release
-        if: steps.version.outputs.exists == 'false'
+      - name: Build versioned ZIP
+        if: steps.version.outputs.publish == 'true'
+        run: python3 scripts/package_release.py --output dist
+      - name: Smoke-test ZIP installation
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          set -eu
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          python3 -m zipfile -e dist/*.zip "$tmp"
+          cd "$tmp/ci-master-control-community-v$(cat "$GITHUB_WORKSPACE/VERSION")"
+          sh install.sh "$tmp/installed"
+          test -f "$tmp/installed/scripts/demo_server.py"
+          sh uninstall.sh "$tmp/installed"
+      - name: Publish versioned pre-release and ZIP asset
+        if: steps.version.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
         run: |
           set -eu
+          existing_tag="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" "refs/tags/$TAG" | cut -f1)"
+          if [ -n "$existing_tag" ]; then
+            echo "Tag already exists: refusing to move it" >&2
+            exit 1
+          fi
           git tag "$TAG" "$GITHUB_SHA"
           git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "refs/tags/$TAG"
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "CI Master Control Community $TAG" --notes-file docs/ALPHA_RELEASE.md --prerelease --latest=false
+          gh release create "$TAG" dist/*.zip --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "CI Master Control Community $TAG" --notes-file docs/ALPHA_RELEASE.md --prerelease --latest=false
