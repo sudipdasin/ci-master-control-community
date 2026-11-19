@@ -20,6 +20,7 @@ class DebPackagingTests(unittest.TestCase):
             listing = subprocess.check_output(["dpkg-deb", "--contents", str(output)], text=True)
             self.assertIn("./usr/bin/ci-master-control-community", listing)
             self.assertIn("./usr/share/ci-master-control-community/demo_server.py", listing)
+            self.assertIn("./usr/share/ci-master-control-community/config/projects.example.json", listing)
             self.assertNotIn("DEBIAN/control", listing)
             control = subprocess.check_output(["dpkg-deb", "--field", str(output), "Architecture"], text=True)
             self.assertEqual(control.strip(), "all")
@@ -27,6 +28,8 @@ class DebPackagingTests(unittest.TestCase):
                 subprocess.run(["dpkg-deb", "-x", str(output), extracted], check=True)
                 launcher = pathlib.Path(extracted) / "usr/bin/ci-master-control-community"
                 self.assertTrue(launcher.is_file())
+                inventory = pathlib.Path(extracted) / "usr/share/ci-master-control-community/config/projects.example.json"
+                self.assertTrue(inventory.is_file())
                 self.assertTrue(bool(launcher.stat().st_mode & 0o111))
 
     def test_invalid_version_rejected(self):
