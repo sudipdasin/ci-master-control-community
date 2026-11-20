@@ -1,0 +1,22 @@
+version: 2.1
+
+# Community CI: built from the existing stdlib-based checks workflow.
+# Validates Python source and tests without GitHub Actions runners.
+jobs:
+  python-checks:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Compile Python source
+          command: python3 -m compileall -q scripts tests
+      - run:
+          name: Run regression suite
+          command: python3 -m unittest discover -s tests -v
+
+workflows:
+  verify:
+    jobs:
+      - python-checks
